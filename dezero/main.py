@@ -1,21 +1,14 @@
 import numpy as np
 
-from core import Square, Exp, Variable, Add
+from core import *
 
 
-def square(x):
-    f = Square()
-    return f(x)
+x = Variable(np.array(2.0))
+y = Variable(np.array(3.0))
 
+z = add(square(x), square(y))
+z.backward()
 
-def exp(x):
-    f = Exp()
-    return f(x)
-
-
-xs = [Variable(np.array(2)), Variable(np.array(3))]
-f = Add()
-
-ys = f(xs)
-y = ys[0]
-print(y.data)
+print("z = ", z.data)
+print("x grad = ", x.grad)
+print("y grad = ", y.grad)

@@ -35,11 +35,16 @@ class Variable:
         funcs = [self.creator]
         while funcs:
             f = funcs.pop()             # 함수를 가져온다.
-            x, y = f.input, f.output    # 함수의 입력과 출력을 가져온다.
-            x.grad = f.backward(y.grad) # backward 메서드를 호출한다.
+            gys = [output.grad for output in f.outputs]
+            gxs = f.backward(*gys)
+            if not isinstance(gxs, tuple):
+                gxs = (gxs,)
 
-            if x.creator is not None:
-                funcs.append(x.creator) # 하나 앞의 함수를 리스트에 추가한다.
+            for x, gx in zip(f.inputs, gxs):
+                x.grad = gx
+
+                if x.creator is not None:
+                    funcs.append(x.creator)
 
 
 def as_array(x):
@@ -86,9 +91,13 @@ class Square(Function):
         return y
     
     def backward(self, gy):
-        x = self.input.data
+        x = self.inputs[0].data
         gx = 2 * x * gy
         return gx
+    
+
+def square(x):
+    return Square()(x)
 
 
 class Exp(Function):
@@ -102,10 +111,17 @@ class Exp(Function):
         return gx
     
 
+def exp(x):
+    return Exp()(x)
+    
+
 class Add(Function):
     def forward(self, x0, x1):
         y = x0 + x1
         return y
+    
+    def backward(self, gy):
+        return gy, gy
     
 
 def add(x0, x1):
