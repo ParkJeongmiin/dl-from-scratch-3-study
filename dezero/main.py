@@ -3,14 +3,11 @@ import numpy as np
 from core import *
 
 
-# 첫 번째 계산
-x = Variable(np.array(3.0))
-y = add(x, x)
-y.backward()
-print('x.grad', x.grad)
+x = Variable(np.array(2.0))
+a = square(x)
 
-# 두 번째 계산(같은 x를 사용하여 다른 계산을 수행)
-x.cleargrad()
-y = add(add(x, x), x)
+y = add(square(a), square(a))
 y.backward()
-print('x.grad', x.grad)
+
+print(y.data)
+print(x.grad)
