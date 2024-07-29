@@ -3,11 +3,7 @@ import numpy as np
 from core import *
 
 
-x = Variable(np.array(2.0))
-a = square(x)
-
-y = add(square(a), square(a))
-y.backward()
-
-print(y.data)
-print(x.grad)
+for i  in range(10):
+    x = Variable(np.random.randn(10000))        # 거대한 데이터
+    y = square(square(square(x)))               # 복잡한 계산
+    

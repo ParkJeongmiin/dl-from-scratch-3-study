@@ -1,3 +1,4 @@
+import weakref
 import numpy as np
 
 
@@ -47,7 +48,7 @@ class Variable:
         
         while funcs:
             f = funcs.pop()             # 함수를 가져온다.
-            gys = [output.grad for output in f.outputs]
+            gys = [output().grad for output in f.outputs]
             gxs = f.backward(*gys)
             if not isinstance(gxs, tuple):
                 gxs = (gxs,)
@@ -90,7 +91,7 @@ class Function:
             output.set_creator(self)
         
         self.inputs = inputs
-        self.outputs = outputs
+        self.outputs = [weakref.ref(output) for output in outputs]      # 함수의 출력값을 약한 참조
 
         return outputs if len(outputs) > 1 else outputs[0]
     
