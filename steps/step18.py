@@ -1,9 +1,27 @@
 import weakref
+import contextlib
 import numpy as np
 
 
 class Config:
     enable_backprop = True
+
+
+@contextlib.contextmanager
+def using_config(name, value):
+    old_value = getattr(Config, name)
+    setattr(Config, name, value)
+    try:
+        yield
+    finally:
+        setattr(Config, name, old_value)
+
+
+def no_grad():
+    """
+    using_config 함수를 편하게 사용하기 위한 편의함수
+    """
+    return using_config('enable_backprop', False)
 
 
 class Variable:
@@ -112,12 +130,13 @@ def square(x):
     return Square()(x)
 
 
-Config.enable_backprop = True       # 역전파 활성화
-x = Variable(np.ones((100, 100, 100)))
-y = square(square(square(x)))       # 역전파 사용 전까지는 중간 계산 결과가 저장되어 있어 메모리를 차지
-y.backward()                        # 역전파가 완료되면 참조 카운트가 0이 되어 메모리에서 삭제
+# with 블록 내에서는 순전파 코드만 실행된다.
+with using_config('enable_backprop', False):
+    x = Variable(np.array(2.0))
+    y = square(x)
 
-
-Config.enable_backprop = False      # 역전파 비활성화
-x = Variable(np.ones((100, 100, 100)))
-y = square(square(square(x)))       # 역전파 비활성화 모드로 중간 계산 결과는 사용 후 바로 삭제
+# 편의함수를 이용해 간편하게 순전파 영역을 지정할 수 있다.
+with no_grad():
+    
+    x = Variable(np.array(2.0))
+    y = square(x)
