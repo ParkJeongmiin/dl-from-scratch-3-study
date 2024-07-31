@@ -1,6 +1,27 @@
 import weakref
+import contextlib
 import numpy as np
 
+
+# ================================================================
+# Config
+# ================================================================
+class Config:
+    enable_backprop = True
+
+
+@contextlib.contextmanager
+def using_config(name, value):
+    old_value = getattr(Config, name)
+    setattr(Config, name, value)
+    try:
+        yield
+    finally:
+        setattr(Config, name, old_value)
+
+
+def no_grad():
+    return using_config('enable_backprop', False)
 
 # ================================================================
 # Variable / Function
@@ -31,7 +52,7 @@ class Variable:
     '''
 
     # 반복문을 이용한 backward 구현
-    def backward(self):
+    def backward(self, retain_grad=False):
         if self.grad is None:
             self.grad = np.ones_like(self.data)     # main에서 y.grad를 직접 지정해주는 코드를 간소화하기 위해
 
@@ -61,6 +82,10 @@ class Variable:
 
                 if x.creator is not None:
                     add_func(x.creator)
+            
+            if not retain_grad:
+                for y in f.outputs:
+                    y().grad = None             # y는 약한 참조(weakref), 중간 변수의 미분값을 모두 None으로 설정
 
     def cleargrad(self):
         self.grad = None
@@ -86,12 +111,13 @@ class Function:
 
         outputs = [Variable(as_array(y)) for y in ys]
 
-        self.generation = max([x.generation for x in inputs])
-        for output in outputs:
-            output.set_creator(self)
-        
-        self.inputs = inputs
-        self.outputs = [weakref.ref(output) for output in outputs]      # 함수의 출력값을 약한 참조
+        if Config.enable_backprop:                                          # 역전파 시에만 사용되는 로직들을 묶어 역전파 활성/비활성 모드로 관리할 수 있도록 합니다.
+            self.generation = max([x.generation for x in inputs])           # 세대 설정 : 역전파 시 노드를 따라가는 순서를 정하는데 사용
+            for output in outputs:
+                output.set_creator(self)                                    # 계산들의 연결 설정 : 역전파 시 어떤 계산과 연결되었는지 확인하는데 사용
+
+            self.inputs = inputs                                            # 순전파 결과를 저장하는 로직
+            self.outputs = [weakref.ref(output) for output in outputs]      # 함수의 출력값을 약한 참조
 
         return outputs if len(outputs) > 1 else outputs[0]
     
