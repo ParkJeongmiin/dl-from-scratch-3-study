@@ -1,6 +1,11 @@
 import weakref
 import numpy as np
 
+
+class Config:
+    enable_backprop = True
+
+
 class Variable:
     def __init__(self, data):
         if data is not None:
@@ -70,12 +75,13 @@ class Function:
 
         outputs = [Variable(as_array(y)) for y in ys]
 
-        self.generation = max([x.generation for x in inputs])           # 여러 입력이 주어진 경우 큰 세대의 숫자로 초기화
-        for output in outputs:
-            output.set_creator(self)
+        if Config.enable_backprop:                                          # 역전파 시에만 사용되는 로직들을 묶어 역전파 활성/비활성 모드로 관리할 수 있도록 합니다.
+            self.generation = max([x.generation for x in inputs])           # 세대 설정 : 역전파 시 노드를 따라가는 순서를 정하는데 사용
+            for output in outputs:
+                output.set_creator(self)                                    # 계산들의 연결 설정 : 역전파 시 어떤 계산과 연결되었는지 확인하는데 사용
 
-        self.inputs = inputs                                            # 순전파 결과를 저장하는 로직
-        self.outputs = [weakref.ref(output) for output in outputs]      # 함수의 출력값을 약한 참조
+            self.inputs = inputs                                            # 순전파 결과를 저장하는 로직
+            self.outputs = [weakref.ref(output) for output in outputs]      # 함수의 출력값을 약한 참조
 
         return outputs if len(outputs) > 1 else outputs[0]
     
@@ -106,11 +112,12 @@ def square(x):
     return Square()(x)
 
 
-x0 = Variable(np.array(1.0))
-x1 = Variable(np.array(2.0))
-t = add(x0, x1)
-y = add(x0, t)
-y.backward()
+Config.enable_backprop = True       # 역전파 활성화
+x = Variable(np.ones((100, 100, 100)))
+y = square(square(square(x)))       # 역전파 사용 전까지는 중간 계산 결과가 저장되어 있어 메모리를 차지
+y.backward()                        # 역전파가 완료되면 참조 카운트가 0이 되어 메모리에서 삭제
 
-print(y.grad, t.grad)
-print(x0.grad, x1.grad)
+
+Config.enable_backprop = False      # 역전파 비활성화
+x = Variable(np.ones((100, 100, 100)))
+y = square(square(square(x)))       # 역전파 비활성화 모드로 중간 계산 결과는 사용 후 바로 삭제
